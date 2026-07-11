@@ -1,0 +1,63 @@
+name: Build e Deploy (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 9 * * *"   # 09:00 UTC = 06:00 em Brasília
+  workflow_dispatch:
+  repository_dispatch:
+    types: [cartilhas-atualizadas]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências do sistema (pdftotext)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependências Python
+        run: pip install -r etl/requirements.txt
+
+      - name: Rodar ETL (baixa as cartilhas, extrai projetos, divide PDFs)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python etl/build.py
+
+      - name: Publicar relatório de build no log
+        run: |
+          echo "== build_report.json =="
+          cat site/data/build_report.json
+
+      - name: Upload do artefato do Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy no GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
