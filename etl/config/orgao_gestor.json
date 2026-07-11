@@ -1,0 +1,37 @@
+{
+  "_comentario": "Tabela de referência: código da Ação Orçamentária -> Órgão Gestor. Edite este arquivo para adicionar novos códigos. Códigos não listados aqui resultam em 'NÃO CLASSIFICADO' (nunca são inferidos). A regra especial da Ação 2000 (SEF vs IMBEL conforme a Unidade Orçamentária) está em 'regras_especiais'. Órgãos ADICIONAIS por palavra-chave no título ficam em 'orgaos_adicionais_por_titulo' (o projeto passa a aparecer também no filtro desse órgão, sem perder o órgão principal).",
+  "acoes": {
+    "2000": "SEF",
+    "156M": "DEC",
+    "20XE": "DCT",
+    "20XJ": "DCT",
+    "219D": "DEC",
+    "21A0": "COLOG",
+    "147F": "DCT",
+    "8965": "COTER",
+    "162O": "DECEX",
+    "2E74": "DGP",
+    "21GP": "DECEX",
+    "21GQ": "DECEX",
+    "21GN": "DECEX",
+    "20XS": "Fundação Osório",
+    "4528": "IMBEL"
+  },
+  "orgaos_por_titulo": [
+    {
+      "descricao": "Projetos de cursos profissionalizantes pertencem ao COTER, substituindo o órgão derivado da Ação (ex.: 21A0/COLOG). Com 'substituir': false, o órgão seria apenas adicionado ao filtro, mantendo o principal.",
+      "titulo_contem": "PROFISSIONALIZANTE",
+      "orgao": "COTER",
+      "substituir": true
+    }
+  ],
+  "regras_especiais": {
+    "2000": {
+      "descricao": "Ação 2000: se a Unidade Orçamentária for 52221 (Indústria de Material Bélico), o Órgão Gestor é IMBEL; caso contrário, SEF.",
+      "por_unidade_orcamentaria": {
+        "52221": "IMBEL"
+      },
+      "padrao": "SEF"
+    }
+  }
+}

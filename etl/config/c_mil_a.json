@@ -1,0 +1,25 @@
+{
+  "_comentario": "Mapeamento UF -> Comando Militar de Área. MG é dividida por município: os municípios listados em 'mg_cmp_municipios' pertencem ao CMP; todos os demais municípios de MG pertencem ao CML. A comparação de municípios é feita sem acentos e em maiúsculas.",
+  "por_uf": {
+    "AC": "CMA", "AM": "CMA", "RO": "CMA", "RR": "CMA",
+    "AP": "CMAO", "MA": "CMAO", "PA": "CMAO",
+    "AL": "CMNE", "BA": "CMNE", "CE": "CMNE", "PB": "CMNE", "PE": "CMNE", "PI": "CMNE", "RN": "CMNE", "SE": "CMNE",
+    "MT": "CMO", "MS": "CMO",
+    "DF": "CMP", "GO": "CMP", "TO": "CMP",
+    "ES": "CML", "RJ": "CML",
+    "SP": "CMSE",
+    "PR": "CMS", "RS": "CMS", "SC": "CMS"
+  },
+  "mg_cmp_municipios": ["UBERLANDIA", "ARAGUARI"],
+  "mg_padrao": "CML",
+  "nomes_completos": {
+    "CMA": "Comando Militar da Amazônia",
+    "CMAO": "Comando Militar da Amazônia Oriental",
+    "CMNE": "Comando Militar do Nordeste",
+    "CMO": "Comando Militar do Oeste",
+    "CMP": "Comando Militar do Planalto",
+    "CML": "Comando Militar do Leste",
+    "CMSE": "Comando Militar do Sudeste",
+    "CMS": "Comando Militar do Sul"
+  }
+}

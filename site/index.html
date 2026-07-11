@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Banco de Projetos de Emendas Parlamentares do Exército Brasileiro — consulta por cidade, estado, ação orçamentária, comando militar de área e órgão gestor.">
+<title>Banco de Projetos — Emendas Parlamentares do Exército</title>
+<style>
+:root{
+  --verde-900:#1e2b16;--verde-800:#2c3e1e;--verde-700:#3a5226;--verde-600:#4b6a30;
+  --verde-100:#e8efe0;--verde-50:#f3f7ee;
+  --areia:#f7f5f0;--branco:#fff;--cinza-900:#20241c;--cinza-700:#4a5142;
+  --cinza-500:#7a816f;--cinza-300:#d4d8cc;--cinza-200:#e4e7de;
+  --dourado:#b08d2f;--alerta-bg:#fdf3d7;--alerta-tx:#7a5d0e;--alerta-bd:#e8cf8a;
+  --sombra:0 1px 3px rgba(30,43,22,.10),0 4px 14px rgba(30,43,22,.06);
+  --raio:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  background:var(--verde-900);color:var(--cinza-900);line-height:1.5;font-size:15px}
+/* Fundo do aplicativo: imagem "Layout" com sobreposição escura para
+   preservar a legibilidade dos cartões (camada fixa, não rola). */
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:
+  linear-gradient(rgba(24,33,17,.80),rgba(24,33,17,.88)),
+  url("assets/layout.jpg") center/cover no-repeat,
+  var(--verde-900)}
+button{font:inherit;cursor:pointer}
+a{color:var(--verde-700)}
+
+/* ---------- Cabeçalho ---------- */
+header{background:linear-gradient(160deg,rgba(30,43,22,.78),rgba(58,82,38,.62));color:#fff;
+  padding:16px 16px 15px;text-align:left;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:14px}
+.brasao{flex:0 0 auto;height:56px;width:auto;display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.35))}
+header h1{font-size:1.1rem;font-weight:700;letter-spacing:.4px;line-height:1.3;text-transform:uppercase}
+header p{opacity:.85;font-size:.82rem;margin-top:3px}
+@media(min-width:768px){header{padding:20px 24px 19px}header h1{font-size:1.45rem}.brasao{height:72px}}
+
+/* ---------- Barra de filtros ---------- */
+.toolbar{position:sticky;top:0;z-index:30;background:var(--branco);
+  border-bottom:1px solid var(--cinza-200);box-shadow:0 2px 8px rgba(30,43,22,.06)}
+.toolbar-inner{max-width:1200px;margin:0 auto;padding:10px 16px}
+.summary-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.summary{font-size:.9rem;color:var(--cinza-700)}
+.summary strong{color:var(--verde-800);font-size:1rem}
+.summary .valor{white-space:nowrap}
+.btn-filtros{display:inline-flex;align-items:center;gap:8px;background:var(--verde-800);color:#fff;
+  border:none;border-radius:24px;padding:9px 18px;font-weight:600;font-size:.9rem}
+.btn-filtros .badge-num{background:var(--dourado);color:#fff;border-radius:999px;
+  min-width:20px;height:20px;display:none;align-items:center;justify-content:center;
+  font-size:.75rem;padding:0 6px}
+.btn-filtros .badge-num.on{display:inline-flex}
+.btn-limpar{background:none;border:none;color:var(--verde-700);font-size:.85rem;
+  text-decoration:underline;display:none;padding:6px}
+.btn-limpar.on{display:inline-block}
+
+/* painel de filtros: drawer no mobile, faixa expandida no desktop */
+.filtros{display:none;padding:14px 0 6px}
+.filtros.open{display:block}
+.filtros-grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:700px){.filtros-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1024px){
+  .filtros{display:block;padding:12px 0 4px}
+  .btn-filtros{display:none}
+  .filtros-grid{grid-template-columns:repeat(5,1fr)}
+}
+.campo label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--cinza-500);margin-bottom:4px}
+.campo select{width:100%;padding:9px 10px;border:1.5px solid var(--cinza-300);border-radius:8px;
+  background:var(--branco);font-size:.9rem;color:var(--cinza-900);appearance:auto}
+.campo select:focus{outline:2px solid var(--verde-600);outline-offset:1px}
+.campo select.ativo{border-color:var(--verde-600);background:var(--verde-50);font-weight:600}
+.ordenar-row{display:flex;justify-content:flex-end;padding:8px 0 2px}
+.ordenar-row select{border:1px solid var(--cinza-300);border-radius:8px;padding:5px 8px;
+  font-size:.8rem;background:var(--branco);color:var(--cinza-700)}
+
+/* ---------- Lista de cartões ---------- */
+main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:1024px){.grid{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--branco);border:1px solid var(--cinza-200);border-radius:var(--raio);
+  padding:16px;box-shadow:var(--sombra);display:flex;flex-direction:column;gap:8px;
+  cursor:pointer;transition:transform .12s,box-shadow .12s;content-visibility:auto;contain-intrinsic-size:210px}
+.card:hover{transform:translateY(-2px);box-shadow:0 4px 10px rgba(30,43,22,.14),0 8px 24px rgba(30,43,22,.10)}
+.card:focus-visible{outline:2px solid var(--verde-600);outline-offset:2px}
+.card h3{font-size:.95rem;line-height:1.35;color:var(--verde-900)}
+.card .local{font-size:.83rem;color:var(--cinza-700);font-weight:600}
+.card .om{font-size:.8rem;color:var(--cinza-500);display:-webkit-box;-webkit-line-clamp:2;
+  -webkit-box-orient:vertical;overflow:hidden}
+.card .rodape{margin-top:auto;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.card .valor{font-size:1.02rem;font-weight:700;color:var(--verde-700);white-space:nowrap}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:.68rem;font-weight:700;letter-spacing:.03em;padding:3px 8px;border-radius:999px;
+  background:var(--verde-100);color:var(--verde-800);white-space:nowrap}
+.tag.acao{background:#e9e4d5;color:#6b5b1e}
+.tag.aviso{background:var(--alerta-bg);color:var(--alerta-tx);border:1px solid var(--alerta-bd)}
+
+/* ---------- Estados vazio / erro / carregando ---------- */
+.estado{padding:56px 20px;text-align:center;color:var(--cinza-500);
+  background:var(--branco);border-radius:var(--raio);box-shadow:var(--sombra)}
+.estado .icone{font-size:2rem;margin-bottom:10px}
+.estado h2{font-size:1.05rem;color:var(--cinza-700);margin-bottom:6px}
+.estado button{margin-top:14px;background:var(--verde-800);color:#fff;border:none;
+  border-radius:8px;padding:9px 18px;font-weight:600}
+
+/* ---------- Detalhe (modal / tela cheia no mobile) ---------- */
+.overlay{position:fixed;inset:0;background:rgba(20,26,14,.55);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:0}
+.overlay.open{display:flex}
+.detalhe{background:var(--branco);width:100%;height:100%;overflow-y:auto;position:relative;
+  display:flex;flex-direction:column}
+@media(min-width:768px){
+  .overlay{padding:32px}
+  .detalhe{max-width:760px;height:auto;max-height:90vh;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+}
+.detalhe-topo{background:var(--verde-900);color:#fff;padding:18px 20px 16px;position:sticky;top:0;z-index:2}
+.detalhe-topo .fechar{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.15);
+  color:#fff;border:none;border-radius:999px;width:34px;height:34px;font-size:1.05rem;line-height:1}
+.detalhe-topo .fechar:hover{background:rgba(255,255,255,.3)}
+.detalhe-topo h2{font-size:1.1rem;line-height:1.35;padding-right:40px}
+.detalhe-topo .local{opacity:.85;font-size:.85rem;margin-top:4px}
+.detalhe-corpo{padding:18px 20px 26px;display:flex;flex-direction:column;gap:16px}
+.bloco h4{font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--cinza-500);margin-bottom:4px}
+.bloco p{font-size:.92rem}
+.grade-dados{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(min-width:560px){.grade-dados{grid-template-columns:repeat(3,1fr)}}
+.dado{background:var(--verde-50);border:1px solid var(--cinza-200);border-radius:10px;padding:10px 12px}
+.dado .rotulo{font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:var(--cinza-500)}
+.dado .valor-d{font-size:.9rem;font-weight:600;color:var(--cinza-900);word-break:break-word}
+.dado.destaque{background:var(--verde-800);border-color:var(--verde-800)}
+.dado.destaque .rotulo{color:#cdd8bd}
+.dado.destaque .valor-d{color:#fff;font-size:1.05rem}
+.aviso-classificacao{background:var(--alerta-bg);border:1px solid var(--alerta-bd);color:var(--alerta-tx);
+  border-radius:10px;padding:10px 12px;font-size:.83rem}
+.acoes-detalhe{display:flex;gap:10px;flex-wrap:wrap;padding:4px 0 8px}
+.btn-download{display:inline-flex;align-items:center;gap:8px;background:var(--verde-700);color:#fff;
+  text-decoration:none;border-radius:10px;padding:12px 18px;font-weight:700;font-size:.92rem}
+.btn-download:hover{background:var(--verde-600)}
+.btn-secundario{display:inline-flex;align-items:center;gap:8px;background:var(--branco);
+  color:var(--verde-800);border:1.5px solid var(--verde-700);border-radius:10px;
+  padding:12px 18px;font-weight:600;font-size:.92rem;text-decoration:none}
+.fonte-info{font-size:.75rem;color:var(--cinza-500)}
+
+footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
+  color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.4)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="brasao" src="assets/brasao.png" alt="Brasão do Exército Brasileiro">
+    <div>
+      <h1>BANCO DE PROJETO DE EMENDAS PARLAMENTARES</h1>
+      <p id="subtitulo">Consulta pública aos projetos das cartilhas do Exército Brasileiro</p>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <div class="summary-row">
+      <div class="summary" id="resumo" aria-live="polite">Carregando…</div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <button class="btn-limpar" id="btnLimpar" type="button">Limpar filtros</button>
+        <button class="btn-filtros" id="btnFiltros" type="button" aria-expanded="false" aria-controls="painelFiltros">
+          Filtros <span class="badge-num" id="badgeNum">0</span>
+        </button>
+      </div>
+    </div>
+    <div class="filtros" id="painelFiltros">
+      <div class="filtros-grid">
+        <div class="campo"><label for="f-cidade">Cidade</label>
+          <select id="f-cidade" data-chave="cidade"><option value="">Todas</option></select></div>
+        <div class="campo"><label for="f-uf">Estado</label>
+          <select id="f-uf" data-chave="uf"><option value="">Todos</option></select></div>
+        <div class="campo"><label for="f-acao">Ação Orçamentária</label>
+          <select id="f-acao" data-chave="acao"><option value="">Todas</option></select></div>
+        <div class="campo"><label for="f-cmila">Comando Militar de Área</label>
+          <select id="f-cmila" data-chave="cmila"><option value="">Todos</option></select></div>
+        <div class="campo"><label for="f-orgao">Órgão Gestor</label>
+          <select id="f-orgao" data-chave="orgao"><option value="">Todos</option></select></div>
+      </div>
+      <div class="ordenar-row">
+        <select id="ordenar" aria-label="Ordenar por">
+          <option value="padrao">Ordem original</option>
+          <option value="valor-desc">Maior valor</option>
+          <option value="valor-asc">Menor valor</option>
+          <option value="titulo">Título (A–Z)</option>
+          <option value="cidade">Cidade (A–Z)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div id="conteudo"><div class="estado" id="carregando"><div class="icone">⏳</div>Carregando projetos…</div></div>
+</main>
+
+<footer>
+  <p>Fonte: cartilhas públicas do Banco de Projetos de Emendas Parlamentares do Exército Brasileiro.
+  Os PDFs individuais são recortes fiéis das páginas originais das cartilhas.</p>
+</footer>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Detalhe do projeto">
+  <div class="detalhe" id="detalhe"></div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* Estado dos filtros: vive SOMENTE neste navegador (variáveis locais + URL).
+   Nenhum estado é compartilhado entre usuários — o site é 100% estático. */
+var DADOS = null;
+var filtros = { cidade:"", uf:"", acao:"", cmila:"", orgao:"" };
+var ordenacao = "padrao";
+var NAO_CLASSIFICADO = "NÃO CLASSIFICADO";
+
+var $ = function(id){ return document.getElementById(id); };
+var fmtBRL = new Intl.NumberFormat("pt-BR",{style:"currency",currency:"BRL"});
+var fmtNum = new Intl.NumberFormat("pt-BR");
+
+function esc(s){
+  return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+
+/* ---------- URL <-> filtros (permite compartilhar links; cada aba é independente) ---------- */
+function lerURL(){
+  var p = new URLSearchParams(location.search);
+  ["cidade","uf","acao","cmila","orgao"].forEach(function(k){ filtros[k] = p.get(k)||""; });
+  var o = p.get("ord"); if(o) ordenacao = o;
+}
+function gravarURL(){
+  var p = new URLSearchParams();
+  ["cidade","uf","acao","cmila","orgao"].forEach(function(k){ if(filtros[k]) p.set(k,filtros[k]); });
+  if(ordenacao!=="padrao") p.set("ord",ordenacao);
+  var qs = p.toString();
+  var hash = location.hash;
+  history.replaceState(null,"",location.pathname+(qs?"?"+qs:"")+hash);
+}
+
+/* ---------- Aplicação dos filtros ---------- */
+function casa(proj, ignorar){
+  if(ignorar!=="cidade" && filtros.cidade && proj.cidade!==filtros.cidade) return false;
+  if(ignorar!=="uf" && filtros.uf && proj.uf!==filtros.uf) return false;
+  if(ignorar!=="acao" && filtros.acao && proj.acaoOrcamentaria!==filtros.acao) return false;
+  if(ignorar!=="cmila" && filtros.cmila && proj.cMilA!==filtros.cmila) return false;
+  if(ignorar!=="orgao" && filtros.orgao &&
+     (proj.orgaosGestores||[proj.orgaoGestor]).indexOf(filtros.orgao)<0) return false;
+  return true;
+}
+function filtrados(){ return DADOS.projetos.filter(function(p){ return casa(p,null); }); }
+
+/* Opções de cada select restritas pelos DEMAIS filtros ativos (facetado).
+   O extrator pode devolver um valor único ou uma lista (ex.: órgãos gestores). */
+function opcoes(chave, extrator){
+  var m = new Map();
+  DADOS.projetos.forEach(function(p){
+    if(!casa(p,chave)) return;
+    var v = extrator(p);
+    if(v==null||v==="") return;
+    (Array.isArray(v)?v:[v]).forEach(function(x){
+      if(x!=null&&x!=="") m.set(x,(m.get(x)||0)+1);
+    });
+  });
+  return m;
+}
+
+function preencherSelect(sel, mapa, atual, rotuloExtra){
+  var chaves = Array.from(mapa.keys()).sort(function(a,b){
+    return String(a).localeCompare(String(b),"pt-BR");
+  });
+  var html = '<option value="">'+ (sel.dataset.chave==="cidade"||sel.dataset.chave==="acao" ? "Todas":"Todos") +'</option>';
+  var atualPresente = false;
+  chaves.forEach(function(k){
+    if(k===atual) atualPresente = true;
+    var extra = rotuloExtra ? rotuloExtra(k) : "";
+    html += '<option value="'+esc(k)+'">'+esc(k)+extra+' ('+mapa.get(k)+')</option>';
+  });
+  /* mantém a seleção atual mesmo que a combinação a tenha esvaziado */
+  if(atual && !atualPresente){
+    html += '<option value="'+esc(atual)+'">'+esc(atual)+' (0)</option>';
+    atualPresente = true;
+  }
+  sel.innerHTML = html;
+  sel.value = atual||"";
+  sel.classList.toggle("ativo", !!atual);
+}
+
+function atualizarSelects(){
+  preencherSelect($("f-cidade"), opcoes("cidade",function(p){return p.cidade;}), filtros.cidade);
+  preencherSelect($("f-uf"),     opcoes("uf",function(p){return p.uf;}),         filtros.uf);
+  preencherSelect($("f-acao"),   opcoes("acao",function(p){return p.acaoOrcamentaria;}), filtros.acao);
+  preencherSelect($("f-cmila"),  opcoes("cmila",function(p){return p.cMilA;}),   filtros.cmila,
+    function(k){ var n=NOMES_CMILA[k]; return n?" — "+n:""; });
+  preencherSelect($("f-orgao"),  opcoes("orgao",function(p){return p.orgaosGestores||p.orgaoGestor;}), filtros.orgao,
+    function(k){ return k===NAO_CLASSIFICADO?" ⚠":""; });
+}
+
+var NOMES_CMILA = {};
+
+/* ---------- Renderização ---------- */
+function render(){
+  var lista = filtrados();
+  var total = lista.reduce(function(s,p){ return s+(p.total||0); },0);
+
+  $("resumo").innerHTML = "<strong>"+fmtNum.format(lista.length)+"</strong> projeto"+(lista.length===1?"":"s")+
+    " · <span class='valor'>"+fmtBRL.format(total)+"</span>";
+
+  var nAtivos = ["cidade","uf","acao","cmila","orgao"].filter(function(k){return filtros[k];}).length;
+  var badge = $("badgeNum");
+  badge.textContent = nAtivos;
+  badge.classList.toggle("on", nAtivos>0);
+  $("btnLimpar").classList.toggle("on", nAtivos>0 || ordenacao!=="padrao");
+
+  atualizarSelects();
+  $("ordenar").value = ordenacao;
+
+  var alvo = $("conteudo");
+  if(!lista.length){
+    alvo.innerHTML = '<div class="estado"><div class="icone">🔍</div>'+
+      '<h2>Nenhum projeto encontrado</h2>'+
+      '<p>Não há projetos que combinem com todos os filtros escolhidos.</p>'+
+      '<button type="button" id="btnLimparVazio">Limpar filtros</button></div>';
+    $("btnLimparVazio").addEventListener("click", limparFiltros);
+    return;
+  }
+
+  if(ordenacao!=="padrao"){
+    lista = lista.slice();
+    if(ordenacao==="valor-desc") lista.sort(function(a,b){return (b.total||0)-(a.total||0);});
+    else if(ordenacao==="valor-asc") lista.sort(function(a,b){return (a.total||0)-(b.total||0);});
+    else if(ordenacao==="titulo") lista.sort(function(a,b){return a.titulo.localeCompare(b.titulo,"pt-BR");});
+    else if(ordenacao==="cidade") lista.sort(function(a,b){
+      return (a.cidade+a.uf).localeCompare(b.cidade+b.uf,"pt-BR");});
+  }
+
+  var html = '<div class="grid">';
+  lista.forEach(function(p){
+    var tagOrgao = p.orgaoGestorConfirmado
+      ? '<span class="tag">'+esc(p.orgaoGestor)+'</span>'
+      : '<span class="tag aviso" title="Código de Ação ainda não mapeado — órgão gestor a confirmar">⚠ a confirmar</span>';
+    (p.orgaosGestores||[]).slice(1).forEach(function(og){
+      tagOrgao += '<span class="tag">'+esc(og)+'</span>';
+    });
+    html += '<article class="card" tabindex="0" role="button" data-id="'+esc(p.id)+'" '+
+      'aria-label="Ver detalhes: '+esc(p.titulo)+'">'+
+      '<h3>'+esc(p.titulo)+'</h3>'+
+      '<div class="local">'+esc(p.cidade)+' – '+esc(p.uf)+'</div>'+
+      '<div class="om">'+esc(p.omBeneficiada)+'</div>'+
+      '<div class="rodape">'+
+        '<div class="tags">'+tagOrgao+
+          '<span class="tag acao">Ação '+esc(p.acaoOrcamentaria||"—")+'</span>'+
+          '<span class="tag">'+esc(p.cMilA||"—")+'</span></div>'+
+        '<div class="valor">'+(p.total!=null?fmtBRL.format(p.total):"—")+'</div>'+
+      '</div></article>';
+  });
+  html += '</div>';
+  alvo.innerHTML = html;
+}
+
+function limparFiltros(){
+  filtros = {cidade:"",uf:"",acao:"",cmila:"",orgao:""};
+  ordenacao = "padrao";
+  gravarURL(); render();
+}
+
+/* ---------- Detalhe ---------- */
+function abrirDetalhe(id){
+  var p = DADOS.porId[id];
+  if(!p) return;
+  var linhaGnd = function(rot,val){
+    return '<div class="dado"><div class="rotulo">'+rot+'</div><div class="valor-d">'+
+      (val!=null?fmtBRL.format(val):"—")+'</div></div>';
+  };
+  var avisoOrgao = p.orgaoGestorConfirmado ? "" :
+    '<div class="aviso-classificacao">⚠ <strong>Órgão gestor a confirmar:</strong> o código de Ação '+
+    'Orçamentária <strong>'+esc(p.acaoOrcamentaria)+'</strong> ainda não consta na tabela de referência. '+
+    'O projeto é exibido normalmente, sem classificação inventada.</div>';
+  var uo = p.unidadeOrcamentaria||{};
+  $("detalhe").innerHTML =
+    '<div class="detalhe-topo">'+
+      '<button class="fechar" type="button" id="btnFechar" aria-label="Fechar">✕</button>'+
+      '<h2>'+esc(p.titulo)+'</h2>'+
+      '<div class="local">📍 '+esc(p.cidade)+' – '+esc(p.uf)+
+        (p.cMilA? ' · '+esc(p.cMilA)+(p.cMilANome?' ('+esc(p.cMilANome)+')':''):'')+'</div>'+
+    '</div>'+
+    '<div class="detalhe-corpo">'+
+      avisoOrgao+
+      '<div class="acoes-detalhe">'+
+        '<a class="btn-download" href="'+esc(p.pdfDownloadUrl)+'" download="'+esc(p.id)+'.pdf">'+
+          '⬇ Baixar PDF do projeto</a>'+
+        '<a class="btn-secundario" href="'+esc(p.pdfDownloadUrl)+'" target="_blank" rel="noopener">Visualizar PDF</a>'+
+      '</div>'+
+      '<div class="bloco"><h4>Objetivo</h4><p>'+esc(p.objetivo||"—")+'</p></div>'+
+      '<div class="bloco"><h4>OM Beneficiada</h4><p>'+esc(p.omBeneficiada||"—")+'</p></div>'+
+      '<div class="grade-dados">'+
+        '<div class="dado destaque"><div class="rotulo">Valor total</div><div class="valor-d">'+
+          (p.total!=null?fmtBRL.format(p.total):"—")+'</div></div>'+
+        linhaGnd("GND3 (custeio)",p.gnd3)+
+        linhaGnd("GND4 (investimento)",p.gnd4)+
+        '<div class="dado"><div class="rotulo">Órgão gestor</div><div class="valor-d">'+
+          esc((p.orgaosGestores||[p.orgaoGestor]).join(" · "))+(p.orgaoGestorConfirmado?"":" ⚠")+'</div></div>'+
+        '<div class="dado"><div class="rotulo">Ação orçamentária</div><div class="valor-d">'+esc(p.acaoOrcamentaria||"—")+'</div></div>'+
+        '<div class="dado"><div class="rotulo">Modalidade de aplicação</div><div class="valor-d">'+esc(p.modalidadeAplicacao||"—")+'</div></div>'+
+        '<div class="dado"><div class="rotulo">Unidade orçamentária</div><div class="valor-d">'+
+          esc(uo.codigo?uo.codigo+" — "+uo.nome:"—")+'</div></div>'+
+        '<div class="dado"><div class="rotulo">Função</div><div class="valor-d">'+esc(p.funcao||"—")+'</div></div>'+
+        '<div class="dado"><div class="rotulo">Subfunção</div><div class="valor-d">'+esc(p.subfuncao||"—")+'</div></div>'+
+        '<div class="dado"><div class="rotulo">Programa</div><div class="valor-d">'+esc(p.programa||"—")+'</div></div>'+
+      '</div>'+
+      '<div class="fonte-info">Fonte: '+esc(p.pdfOrigem)+', página '+p.pdfPaginaOriginal+
+        '. O download acima contém apenas a página deste projeto.</div>'+
+    '</div>';
+  $("overlay").classList.add("open");
+  document.body.style.overflow = "hidden";
+  $("btnFechar").addEventListener("click", fecharDetalhe);
+  if(location.hash !== "#projeto="+id)
+    history.pushState(null,"",location.pathname+location.search+"#projeto="+id);
+}
+function fecharDetalhe(){
+  $("overlay").classList.remove("open");
+  document.body.style.overflow = "";
+  if(location.hash.indexOf("#projeto=")===0)
+    history.replaceState(null,"",location.pathname+location.search);
+}
+
+/* ---------- Eventos ---------- */
+function ligarEventos(){
+  ["f-cidade","f-uf","f-acao","f-cmila","f-orgao"].forEach(function(id){
+    $(id).addEventListener("change",function(){
+      filtros[this.dataset.chave] = this.value;
+      gravarURL(); render();
+    });
+  });
+  $("ordenar").addEventListener("change",function(){
+    ordenacao = this.value; gravarURL(); render();
+  });
+  $("btnLimpar").addEventListener("click", limparFiltros);
+  $("btnFiltros").addEventListener("click",function(){
+    var painel = $("painelFiltros");
+    var aberto = painel.classList.toggle("open");
+    this.setAttribute("aria-expanded", aberto?"true":"false");
+  });
+  document.addEventListener("click",function(e){
+    var card = e.target.closest(".card");
+    if(card) abrirDetalhe(card.dataset.id);
+    if(e.target===$("overlay")) fecharDetalhe();
+  });
+  document.addEventListener("keydown",function(e){
+    if(e.key==="Escape") fecharDetalhe();
+    if((e.key==="Enter"||e.key===" ") && document.activeElement &&
+        document.activeElement.classList.contains("card")){
+      e.preventDefault(); abrirDetalhe(document.activeElement.dataset.id);
+    }
+  });
+  window.addEventListener("popstate",function(){
+    lerURL(); render();
+    var m = location.hash.match(/^#projeto=(.+)$/);
+    if(m && DADOS.porId[decodeURIComponent(m[1])]) abrirDetalhe(decodeURIComponent(m[1]));
+    else fecharDetalhe();
+  });
+}
+
+/* ---------- Inicialização ---------- */
+function iniciar(){
+  lerURL();
+  fetch("data/projects.json")
+    .then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); })
+    .then(function(d){
+      DADOS = d;
+      DADOS.porId = {};
+      d.projetos.forEach(function(p){ DADOS.porId[p.id]=p; NOMES_CMILA[p.cMilA]=p.cMilANome; });
+      var quando = d.geradoEm ? new Date(d.geradoEm) : null;
+      $("subtitulo").textContent = fmtNum.format(d.totalProjetos)+
+        " projetos das cartilhas oficiais"+
+        (quando? " · atualizado em "+quando.toLocaleDateString("pt-BR"):"");
+      ligarEventos();
+      render();
+      var m = location.hash.match(/^#projeto=(.+)$/);
+      if(m && DADOS.porId[decodeURIComponent(m[1])]) abrirDetalhe(decodeURIComponent(m[1]));
+    })
+    .catch(function(err){
+      $("conteudo").innerHTML = '<div class="estado"><div class="icone">⚠️</div>'+
+        '<h2>Não foi possível carregar os dados</h2>'+
+        '<p>Verifique sua conexão e tente novamente. ('+esc(err.message)+')</p>'+
+        '<button type="button" onclick="location.reload()">Tentar novamente</button></div>';
+    });
+}
+iniciar();
+})();
+</script>
+</body>
+</html>
