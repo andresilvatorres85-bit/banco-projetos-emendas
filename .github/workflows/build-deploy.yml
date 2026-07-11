@@ -1,11 +1,17 @@
 name: Build e Deploy (GitHub Pages)
 
 on:
+  # Publica ao alterar o código do app
   push:
     branches: [main]
+  # Reprocessa as cartilhas diariamente (o repositório de dados é separado,
+  # então o agendamento garante que novas cartilhas entrem sem intervenção)
   schedule:
     - cron: "0 9 * * *"   # 09:00 UTC = 06:00 em Brasília
+  # Permite rodar manualmente pela aba Actions
   workflow_dispatch:
+  # Permite disparo remoto via webhook do repositório de dados (opcional,
+  # ver DEPLOY.md seção 5)
   repository_dispatch:
     types: [cartilhas-atualizadas]
 
@@ -36,10 +42,11 @@ jobs:
       - name: Instalar dependências Python
         run: pip install -r etl/requirements.txt
 
-      - name: Rodar ETL (baixa as cartilhas, extrai projetos, divide PDFs)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python etl/build.py
+      - name: Baixar as cartilhas (clone raso do repositório de dados)
+        run: git clone --depth 1 https://github.com/andresilvatorres85-bit/cartilhas /tmp/cartilhas
+
+      - name: Rodar ETL (extrai projetos e divide PDFs)
+        run: python etl/build.py --local-dir /tmp/cartilhas
 
       - name: Publicar relatório de build no log
         run: |
