@@ -29,6 +29,7 @@ import unicodedata
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from pypdf import PdfReader, PdfWriter
 
@@ -77,6 +78,14 @@ def list_repo_pdfs(repo: str):
     return pdfs
 
 
+def _encode_url(url: str) -> str:
+    """Codifica espaços/acentos no caminho da URL (os nomes das cartilhas
+    contêm espaços, parênteses e acentos, que a API devolve sem codificar)."""
+    p = urlsplit(url)
+    return urlunsplit((p.scheme, p.netloc, quote(p.path),
+                       quote(p.query, safe="=&"), p.fragment))
+
+
 def _gh_headers():
     headers = {"Accept": "application/vnd.github+json",
                "User-Agent": "banco-projetos-emendas-etl"}
@@ -97,7 +106,8 @@ def download_pdfs(repo: str, dest: Path):
         local = dest / f"{e['sha']}.pdf"
         if not local.exists():
             print(f"  baixando: {e['name']}")
-            req = urllib.request.Request(e["download_url"], headers=_gh_headers())
+            req = urllib.request.Request(_encode_url(e["download_url"]),
+                                         headers=_gh_headers())
             with urllib.request.urlopen(req) as resp, open(local, "wb") as out:
                 while True:
                     chunk = resp.read(1 << 20)
