@@ -63,7 +63,7 @@ header p{opacity:.85;font-size:.82rem;margin-top:3px}
 @media(min-width:1024px){
   .filtros{display:block;padding:12px 0 4px}
   .btn-filtros{display:none}
-  .filtros-grid{grid-template-columns:repeat(5,1fr)}
+  .filtros-grid{grid-template-columns:repeat(6,1fr)}
 }
 .campo label{display:block;font-size:.72rem;font-weight:700;text-transform:uppercase;
   letter-spacing:.06em;color:var(--cinza-500);margin-bottom:4px}
@@ -153,7 +153,7 @@ footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
   <div class="header-inner">
     <img class="brasao" src="assets/brasao.png" alt="Brasão do Exército Brasileiro">
     <div>
-      <h1>BANCO DE PROJETO DE EMENDAS PARLAMENTARES</h1>
+      <h1>BANCO DE PROJETOS DE EMENDAS PARLAMENTARES AO PLOA 2027</h1>
       <p id="subtitulo">Consulta pública aos projetos das cartilhas do Exército Brasileiro</p>
     </div>
   </div>
@@ -172,6 +172,8 @@ footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
     </div>
     <div class="filtros" id="painelFiltros">
       <div class="filtros-grid">
+        <div class="campo"><label for="f-om">OM Beneficiada</label>
+          <select id="f-om" data-chave="om"><option value="">Todas</option></select></div>
         <div class="campo"><label for="f-cidade">Cidade</label>
           <select id="f-cidade" data-chave="cidade"><option value="">Todas</option></select></div>
         <div class="campo"><label for="f-uf">Estado</label>
@@ -216,7 +218,7 @@ footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
 /* Estado dos filtros: vive SOMENTE neste navegador (variáveis locais + URL).
    Nenhum estado é compartilhado entre usuários — o site é 100% estático. */
 var DADOS = null;
-var filtros = { cidade:"", uf:"", acao:"", cmila:"", orgao:"" };
+var filtros = { om:"", cidade:"", uf:"", acao:"", cmila:"", orgao:"" };
 var ordenacao = "padrao";
 var NAO_CLASSIFICADO = "NÃO CLASSIFICADO";
 
@@ -233,12 +235,12 @@ function esc(s){
 /* ---------- URL <-> filtros (permite compartilhar links; cada aba é independente) ---------- */
 function lerURL(){
   var p = new URLSearchParams(location.search);
-  ["cidade","uf","acao","cmila","orgao"].forEach(function(k){ filtros[k] = p.get(k)||""; });
+  ["om","cidade","uf","acao","cmila","orgao"].forEach(function(k){ filtros[k] = p.get(k)||""; });
   var o = p.get("ord"); if(o) ordenacao = o;
 }
 function gravarURL(){
   var p = new URLSearchParams();
-  ["cidade","uf","acao","cmila","orgao"].forEach(function(k){ if(filtros[k]) p.set(k,filtros[k]); });
+  ["om","cidade","uf","acao","cmila","orgao"].forEach(function(k){ if(filtros[k]) p.set(k,filtros[k]); });
   if(ordenacao!=="padrao") p.set("ord",ordenacao);
   var qs = p.toString();
   var hash = location.hash;
@@ -247,6 +249,7 @@ function gravarURL(){
 
 /* ---------- Aplicação dos filtros ---------- */
 function casa(proj, ignorar){
+  if(ignorar!=="om" && filtros.om && proj.omBeneficiada!==filtros.om) return false;
   if(ignorar!=="cidade" && filtros.cidade && proj.cidade!==filtros.cidade) return false;
   if(ignorar!=="uf" && filtros.uf && proj.uf!==filtros.uf) return false;
   if(ignorar!=="acao" && filtros.acao && proj.acaoOrcamentaria!==filtros.acao) return false;
@@ -276,7 +279,7 @@ function preencherSelect(sel, mapa, atual, rotuloExtra){
   var chaves = Array.from(mapa.keys()).sort(function(a,b){
     return String(a).localeCompare(String(b),"pt-BR");
   });
-  var html = '<option value="">'+ (sel.dataset.chave==="cidade"||sel.dataset.chave==="acao" ? "Todas":"Todos") +'</option>';
+  var html = '<option value="">'+ (sel.dataset.chave==="om"||sel.dataset.chave==="cidade"||sel.dataset.chave==="acao" ? "Todas":"Todos") +'</option>';
   var atualPresente = false;
   chaves.forEach(function(k){
     if(k===atual) atualPresente = true;
@@ -294,6 +297,7 @@ function preencherSelect(sel, mapa, atual, rotuloExtra){
 }
 
 function atualizarSelects(){
+  preencherSelect($("f-om"), opcoes("om",function(p){return p.omBeneficiada;}), filtros.om);
   preencherSelect($("f-cidade"), opcoes("cidade",function(p){return p.cidade;}), filtros.cidade);
   preencherSelect($("f-uf"),     opcoes("uf",function(p){return p.uf;}),         filtros.uf);
   preencherSelect($("f-acao"),   opcoes("acao",function(p){return p.acaoOrcamentaria;}), filtros.acao);
@@ -313,7 +317,7 @@ function render(){
   $("resumo").innerHTML = "<strong>"+fmtNum.format(lista.length)+"</strong> projeto"+(lista.length===1?"":"s")+
     " · <span class='valor'>"+fmtBRL.format(total)+"</span>";
 
-  var nAtivos = ["cidade","uf","acao","cmila","orgao"].filter(function(k){return filtros[k];}).length;
+  var nAtivos = ["om","cidade","uf","acao","cmila","orgao"].filter(function(k){return filtros[k];}).length;
   var badge = $("badgeNum");
   badge.textContent = nAtivos;
   badge.classList.toggle("on", nAtivos>0);
@@ -366,7 +370,7 @@ function render(){
 }
 
 function limparFiltros(){
-  filtros = {cidade:"",uf:"",acao:"",cmila:"",orgao:""};
+  filtros = {om:"",cidade:"",uf:"",acao:"",cmila:"",orgao:""};
   ordenacao = "padrao";
   gravarURL(); render();
 }
@@ -433,7 +437,7 @@ function fecharDetalhe(){
 
 /* ---------- Eventos ---------- */
 function ligarEventos(){
-  ["f-cidade","f-uf","f-acao","f-cmila","f-orgao"].forEach(function(id){
+  ["f-om","f-cidade","f-uf","f-acao","f-cmila","f-orgao"].forEach(function(id){
     $(id).addEventListener("change",function(){
       filtros[this.dataset.chave] = this.value;
       gravarURL(); render();
