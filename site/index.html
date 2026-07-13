@@ -430,7 +430,7 @@ function abrirDetalhe(id){
     '<div class="detalhe-corpo">'+
       avisoOrgao+
       '<div class="acoes-detalhe">'+
-        '<a class="btn-download" href="'+esc(p.pdfDownloadUrl)+'" download="'+esc(p.id)+'.pdf" target="_blank" rel="noopener">'+
+        '<a class="btn-download" href="'+esc(p.pdfDownloadUrl)+'" download="'+esc(p.id)+'.pdf" target="_blank" rel="noopener" data-baixar="'+esc(p.id)+'">'+
           '⬇ Baixar PDF do projeto</a>'+
         '<button class="btn-secundario" type="button" data-visor="'+esc(p.id)+'">Visualizar PDF</button>'+
       '</div>'+
@@ -456,10 +456,54 @@ function abrirDetalhe(id){
     '</div>';
   $("overlay").classList.add("open");
   document.body.style.overflow = "hidden";
+  if(emModoApp()) prefetchPdf(id);   /* deixa o PDF pronto para o botão Baixar */
   $("btnFechar").addEventListener("click", fecharDetalhe);
   if(location.hash.indexOf("#projeto="+id) !== 0)
     history.pushState(null,"",location.pathname+location.search+"#projeto="+id);
 }
+/* Detecta o modo "aplicativo instalado" (ícone na tela de início). */
+function emModoApp(){
+  return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) ||
+         window.navigator.standalone === true ||
+         new URLSearchParams(location.search).has("modoapp");
+}
+/* Download sem navegar (evita ficar preso no PDF dentro do app):
+   1º tenta a folha de compartilhamento nativa; 2º download direto; 3º nova aba. */
+function blobDownload(blob, id){
+  var u = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = u; a.download = id + ".pdf";
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); }, 5000);
+}
+var cachePdfs = {};
+function prefetchPdf(id){
+  var p = DADOS.porId[id];
+  if(!p) return null;
+  if(!cachePdfs[id]){
+    cachePdfs[id] = fetch(p.pdfDownloadUrl).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.blob();
+    }).catch(function(e){ delete cachePdfs[id]; throw e; });
+  }
+  return cachePdfs[id];
+}
+function baixarPdf(id){
+  var p = DADOS.porId[id];
+  if(!p) return;
+  prefetchPdf(id).then(function(blob){
+    var arq = null;
+    try{ arq = new File([blob], id+".pdf", {type:"application/pdf"}); }catch(e){}
+    if(arq && navigator.share && navigator.canShare && navigator.canShare({files:[arq]})){
+      navigator.share({files:[arq], title:p.titulo}).catch(function(err){
+        if(!err || err.name !== "AbortError") blobDownload(blob, id);
+      });
+      return;
+    }
+    blobDownload(blob, id);
+  }).catch(function(){ window.open(p.pdfDownloadUrl, "_blank", "noopener"); });
+}
+
 var visorEmpilhado = false;
 function abrirVisor(id, empilhar){
   var p = DADOS.porId[id];
@@ -467,6 +511,7 @@ function abrirVisor(id, empilhar){
   $("visorTitulo").textContent = p.titulo;
   var bx = $("visorBaixar");
   bx.href = p.pdfDownloadUrl; bx.setAttribute("download", p.id+".pdf");
+  bx.setAttribute("data-baixar", id);
   $("visorCorpo").innerHTML = '<div class="carregando-pdf">Carregando página do projeto…</div>';
   var img = new Image();
   img.alt = "Página do projeto na cartilha";
@@ -519,6 +564,8 @@ function ligarEventos(){
     this.setAttribute("aria-expanded", aberto?"true":"false");
   });
   document.addEventListener("click",function(e){
+    var bd = e.target.closest("[data-baixar]");
+    if(bd && emModoApp()){ e.preventDefault(); baixarPdf(bd.getAttribute("data-baixar")); return; }
     var bv = e.target.closest("[data-visor]");
     if(bv){ abrirVisor(bv.getAttribute("data-visor")); return; }
     var card = e.target.closest(".card");
