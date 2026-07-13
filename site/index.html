@@ -8,8 +8,8 @@
 <!-- PWA: permite "Adicionar à Tela de Início" com ícone do brasão -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1e2b16">
-<link rel="icon" type="image/png" sizes="192x192" href="assets/icon-192.png">
-<link rel="apple-touch-icon" href="assets/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192-v2.png">
+<link rel="apple-touch-icon" href="icon-180-v2.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -152,6 +152,20 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}
   padding:12px 18px;font-weight:600;font-size:.92rem;text-decoration:none}
 .fonte-info{font-size:.75rem;color:var(--cinza-500)}
 
+/* ---------- Visor interno de PDF (não sai do aplicativo) ---------- */
+.visor{position:fixed;inset:0;z-index:70;background:rgba(14,19,9,.97);display:none;flex-direction:column}
+.visor.open{display:flex}
+.visor-topo{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--verde-900);
+  color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.visor-topo .titulo{flex:1;font-size:.85rem;font-weight:600;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.visor-topo a.baixar{display:inline-flex;align-items:center;gap:6px;background:var(--verde-700);
+  color:#fff;text-decoration:none;border-radius:8px;padding:8px 13px;font-weight:700;font-size:.83rem;white-space:nowrap}
+.visor-topo button.fechar-visor{background:rgba(255,255,255,.15);color:#fff;border:none;
+  border-radius:999px;width:34px;height:34px;font-size:1.05rem;line-height:1;flex:0 0 auto}
+.visor-corpo{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:14px;text-align:center}
+.visor-corpo img{max-width:100%;height:auto;border-radius:6px;box-shadow:0 6px 30px rgba(0,0,0,.6);background:#fff}
+.visor-corpo .carregando-pdf{color:rgba(255,255,255,.7);padding:40px 10px;font-size:.9rem}
 footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
   color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.4)}
 </style>
@@ -215,6 +229,15 @@ footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
   <p>Fonte: cartilhas públicas do Banco de Projetos de Emendas Parlamentares do Exército Brasileiro.
   Os PDFs individuais são recortes fiéis das páginas originais das cartilhas.</p>
 </footer>
+
+<div class="visor" id="visor" role="dialog" aria-modal="true" aria-label="Visualização do PDF do projeto">
+  <div class="visor-topo">
+    <button class="fechar-visor" type="button" id="btnFecharVisor" aria-label="Voltar ao projeto">←</button>
+    <div class="titulo" id="visorTitulo"></div>
+    <a class="baixar" id="visorBaixar" href="#" download target="_blank" rel="noopener">⬇ Baixar</a>
+  </div>
+  <div class="visor-corpo" id="visorCorpo"></div>
+</div>
 
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Detalhe do projeto">
   <div class="detalhe" id="detalhe"></div>
@@ -407,9 +430,9 @@ function abrirDetalhe(id){
     '<div class="detalhe-corpo">'+
       avisoOrgao+
       '<div class="acoes-detalhe">'+
-        '<a class="btn-download" href="'+esc(p.pdfDownloadUrl)+'" download="'+esc(p.id)+'.pdf">'+
+        '<a class="btn-download" href="'+esc(p.pdfDownloadUrl)+'" download="'+esc(p.id)+'.pdf" target="_blank" rel="noopener">'+
           '⬇ Baixar PDF do projeto</a>'+
-        '<a class="btn-secundario" href="'+esc(p.pdfDownloadUrl)+'" target="_blank" rel="noopener">Visualizar PDF</a>'+
+        '<button class="btn-secundario" type="button" data-visor="'+esc(p.id)+'">Visualizar PDF</button>'+
       '</div>'+
       '<div class="bloco"><h4>Objetivo</h4><p>'+esc(p.objetivo||"—")+'</p></div>'+
       '<div class="bloco"><h4>OM Beneficiada</h4><p>'+esc(p.omBeneficiada||"—")+'</p></div>'+
@@ -434,10 +457,44 @@ function abrirDetalhe(id){
   $("overlay").classList.add("open");
   document.body.style.overflow = "hidden";
   $("btnFechar").addEventListener("click", fecharDetalhe);
-  if(location.hash !== "#projeto="+id)
+  if(location.hash.indexOf("#projeto="+id) !== 0)
     history.pushState(null,"",location.pathname+location.search+"#projeto="+id);
 }
+var visorEmpilhado = false;
+function abrirVisor(id, empilhar){
+  var p = DADOS.porId[id];
+  if(!p) return;
+  $("visorTitulo").textContent = p.titulo;
+  var bx = $("visorBaixar");
+  bx.href = p.pdfDownloadUrl; bx.setAttribute("download", p.id+".pdf");
+  $("visorCorpo").innerHTML = '<div class="carregando-pdf">Carregando página do projeto…</div>';
+  var img = new Image();
+  img.alt = "Página do projeto na cartilha";
+  img.onload = function(){ $("visorCorpo").innerHTML=""; $("visorCorpo").appendChild(img); };
+  img.onerror = function(){
+    $("visorCorpo").innerHTML = '<div class="carregando-pdf">Não foi possível carregar a imagem. '+
+      'Use o botão Baixar acima para abrir o PDF.</div>';
+  };
+  img.src = p.previewUrl || p.pdfDownloadUrl;
+  $("visor").classList.add("open");
+  if(empilhar !== false){
+    history.pushState(null,"",location.pathname+location.search+"#projeto="+id+"&pdf");
+    visorEmpilhado = true;
+  } else {
+    visorEmpilhado = false;
+  }
+}
+function fecharVisorSo(){ $("visor").classList.remove("open"); }
+function fecharVisor(){
+  if(visorEmpilhado){ history.back(); }          /* popstate fecha e mantém o detalhe */
+  else {
+    fecharVisorSo();
+    var m = location.hash.match(/^#projeto=([^&]+)/);
+    if(m) history.replaceState(null,"",location.pathname+location.search+"#projeto="+m[1]);
+  }
+}
 function fecharDetalhe(){
+  fecharVisorSo();
   $("overlay").classList.remove("open");
   document.body.style.overflow = "";
   if(location.hash.indexOf("#projeto=")===0)
@@ -462,12 +519,18 @@ function ligarEventos(){
     this.setAttribute("aria-expanded", aberto?"true":"false");
   });
   document.addEventListener("click",function(e){
+    var bv = e.target.closest("[data-visor]");
+    if(bv){ abrirVisor(bv.getAttribute("data-visor")); return; }
     var card = e.target.closest(".card");
     if(card) abrirDetalhe(card.dataset.id);
     if(e.target===$("overlay")) fecharDetalhe();
   });
+  $("btnFecharVisor").addEventListener("click", fecharVisor);
   document.addEventListener("keydown",function(e){
-    if(e.key==="Escape") fecharDetalhe();
+    if(e.key==="Escape"){
+      if($("visor").classList.contains("open")){ fecharVisor(); return; }
+      fecharDetalhe();
+    }
     if((e.key==="Enter"||e.key===" ") && document.activeElement &&
         document.activeElement.classList.contains("card")){
       e.preventDefault(); abrirDetalhe(document.activeElement.dataset.id);
@@ -475,9 +538,12 @@ function ligarEventos(){
   });
   window.addEventListener("popstate",function(){
     lerURL(); render();
-    var m = location.hash.match(/^#projeto=(.+)$/);
-    if(m && DADOS.porId[decodeURIComponent(m[1])]) abrirDetalhe(decodeURIComponent(m[1]));
-    else fecharDetalhe();
+    var m = location.hash.match(/^#projeto=([^&]+)(&pdf)?$/);
+    var id = m ? decodeURIComponent(m[1]) : null;
+    if(id && DADOS.porId[id]){
+      abrirDetalhe(id);
+      if(m[2]) abrirVisor(id, false); else fecharVisorSo();
+    } else fecharDetalhe();
   });
 }
 
@@ -496,8 +562,11 @@ function iniciar(){
         (quando? " · atualizado em "+quando.toLocaleDateString("pt-BR"):"");
       ligarEventos();
       render();
-      var m = location.hash.match(/^#projeto=(.+)$/);
-      if(m && DADOS.porId[decodeURIComponent(m[1])]) abrirDetalhe(decodeURIComponent(m[1]));
+      var m = location.hash.match(/^#projeto=([^&]+)(&pdf)?$/);
+      if(m && DADOS.porId[decodeURIComponent(m[1])]){
+        abrirDetalhe(decodeURIComponent(m[1]));
+        if(m[2]) abrirVisor(decodeURIComponent(m[1]), false);
+      }
     })
     .catch(function(err){
       $("conteudo").innerHTML = '<div class="estado"><div class="icone">⚠️</div>'+
