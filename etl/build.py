@@ -86,11 +86,13 @@ def _encode_url(url: str) -> str:
                        quote(p.query, safe="=&"), p.fragment))
 
 
-def _gh_headers():
+def _gh_headers(com_token: bool = True):
+    """Cabeçalhos para a API. O token só deve ir para api.github.com —
+    enviá-lo ao raw.githubusercontent.com de outro repositório causa 404."""
     headers = {"Accept": "application/vnd.github+json",
                "User-Agent": "banco-projetos-emendas-etl"}
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if token:
+    if token and com_token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
 
@@ -107,7 +109,7 @@ def download_pdfs(repo: str, dest: Path):
         if not local.exists():
             print(f"  baixando: {e['name']}")
             req = urllib.request.Request(_encode_url(e["download_url"]),
-                                         headers=_gh_headers())
+                                         headers=_gh_headers(com_token=False))
             with urllib.request.urlopen(req) as resp, open(local, "wb") as out:
                 while True:
                     chunk = resp.read(1 << 20)
@@ -367,9 +369,13 @@ def main():
 
     pdfs_out = args.out_dir / "pdfs"
     data_out = args.out_dir / "data"
+    previews_out = args.out_dir / "previews"
     pdfs_out.mkdir(parents=True, exist_ok=True)
     data_out.mkdir(parents=True, exist_ok=True)
+    previews_out.mkdir(parents=True, exist_ok=True)
     for old in pdfs_out.glob("*.pdf"):
+        old.unlink()
+    for old in previews_out.glob("*.jpg"):
         old.unlink()
 
     projects, warnings, unmapped = [], [], {}
@@ -438,6 +444,7 @@ def main():
                 "pdfOrigem": f["name"],
                 "pdfPaginaOriginal": page_no,
                 "pdfDownloadUrl": f"pdfs/{proj_id}.pdf",
+                "previewUrl": f"previews/{proj_id}.jpg",
                 "_writer_src": (str(f["path"]), page_no - 1),
             })
 
@@ -453,6 +460,16 @@ def main():
         writer.add_page(readers[src].pages[page_idx])
         with open(pdfs_out / f"{p['id']}.pdf", "wb") as out:
             writer.write(out)
+
+    print("3b/4 Gerando imagens de pré-visualização (visor interno do app)…")
+    for p in projects:
+        # imagem da página para o visor interno (funciona em qualquer celular,
+        # inclusive no app instalado na tela de início, sem sair do aplicativo)
+        subprocess.run(
+            ["pdftoppm", "-jpeg", "-jpegopt", "quality=72", "-r", "100",
+             "-singlefile", str(pdfs_out / f"{p['id']}.pdf"),
+             str(previews_out / p["id"])],
+            check=True)
 
     print("4/4 Gravando projects.json e relatório de build…")
     dataset = {
