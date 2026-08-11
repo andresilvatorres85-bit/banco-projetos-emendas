@@ -1,7 +1,6 @@
-node_modules/
-dist/
-*.log
-.DS_Store
-
-# cache do Python (gerado ao importar o pipeline em testes)
+site/pdfs/
+site/data/projects.json
+site/data/build_report.json
+etl/.cache/
 __pycache__/
+*.pyc
