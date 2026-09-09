@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="Banco de Projetos de Emendas Parlamentares do Exército Brasileiro — consulta por cidade, estado, ação orçamentária, comando militar de área e órgão gestor.">
 <title>Banco de Projetos de Emendas Parlamentares ao PLOA 2027</title>
+<!-- Modo embutido: quando aberto com ?embed=1 (ex.: dentro da aba Cartilhas do
+     Gestão A4.6), marca o documento para esconder o cabeçalho de título via CSS.
+     Fica aqui no <head> para aplicar antes da primeira pintura, sem "piscar". -->
+<script>(function(){try{if(new URLSearchParams(location.search).has("embed"))document.documentElement.classList.add("embed");}catch(e){}})();</script>
 <!-- PWA: permite "Adicionar à Tela de Início" com ícone do brasão -->
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1e2b16">
@@ -168,6 +172,10 @@ main{max-width:1200px;margin:0 auto;padding:16px 16px 60px}
 .visor-corpo .carregando-pdf{color:rgba(255,255,255,.7);padding:40px 10px;font-size:.9rem}
 footer{max-width:1200px;margin:0 auto;padding:0 16px 40px;font-size:.75rem;
   color:rgba(255,255,255,.75);text-shadow:0 1px 2px rgba(0,0,0,.4)}
+/* Modo embutido (?embed=1): o site roda dentro de outro app (aba Cartilhas do
+   Gestão A4.6) que já tem cabeçalho próprio — escondemos a faixa de título.
+   A barra de filtros e a lista de projetos continuam visíveis. */
+html.embed header{display:none}
 </style>
 </head>
 <body>
