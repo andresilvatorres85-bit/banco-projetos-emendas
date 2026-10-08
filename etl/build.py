@@ -20,6 +20,7 @@ Requisitos: pdftotext (poppler-utils), pypdf.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -460,6 +461,13 @@ def main():
         writer.add_page(readers[src].pages[page_idx])
         with open(pdfs_out / f"{p['id']}.pdf", "wb") as out:
             writer.write(out)
+        # Versão pelo conteúdo da página: quando uma página é alterada dentro
+        # de uma cartilha (mesmo id), a URL muda e o navegador/app instalado
+        # não reaproveita o PDF ou a pré-visualização antigos do cache.
+        versao = hashlib.sha256(
+            (pdfs_out / f"{p['id']}.pdf").read_bytes()).hexdigest()[:12]
+        p["pdfDownloadUrl"] += f"?v={versao}"
+        p["previewUrl"] += f"?v={versao}"
 
     print("3b/4 Gerando imagens de pré-visualização (visor interno do app)…")
     for p in projects:
