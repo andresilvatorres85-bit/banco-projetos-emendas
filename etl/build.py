@@ -234,6 +234,13 @@ def parse_page(page_text: str, warnings: list, ctx: str):
             break
         if state == "om":
             om_lines.append(l)
+    if state is None:
+        # Página sem o rótulo "OM BENEFICIADA" na camada de texto: a OM é o
+        # texto entre o MUNICÍPIO e a linha de Unidade Orçamentária/Ação.
+        for i, l in after:
+            if _UO_RE.match(l) or "UNIDADE ORCAMENTARIA" in strip_accents(l).upper():
+                break
+            om_lines.append(l)
     fields["omBeneficiada"] = re.sub(r"\s+", " ", " ".join(om_lines)).strip()
     if not fields["omBeneficiada"]:
         warnings.append(f"{ctx}: OM beneficiada não encontrada")
@@ -273,7 +280,10 @@ def parse_page(page_text: str, warnings: list, ctx: str):
 
     # --- GND3 / GND4 / Total --------------------------------------------------
     fields["gnd3"] = fields["gnd4"] = fields["total"] = None
-    seen_gnd_header = False
+    # Sem o cabeçalho "GND3 ... TOTAL" na camada de texto, aceita a primeira
+    # linha de três colunas monetárias da página.
+    seen_gnd_header = not any(
+        "GND3" in l.upper() and "TOTAL" in l.upper() for i, l in after)
     for i, l in after:
         u = l.upper()
         if "GND3" in u and "TOTAL" in u:
