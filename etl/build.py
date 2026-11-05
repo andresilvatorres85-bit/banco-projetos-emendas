@@ -20,6 +20,7 @@ Requisitos: pdftotext (poppler-utils), pypdf.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -233,6 +234,13 @@ def parse_page(page_text: str, warnings: list, ctx: str):
             break
         if state == "om":
             om_lines.append(l)
+    if state is None:
+        # Página sem o rótulo "OM BENEFICIADA" na camada de texto: a OM é o
+        # texto entre o MUNICÍPIO e a linha de Unidade Orçamentária/Ação.
+        for i, l in after:
+            if _UO_RE.match(l) or "UNIDADE ORCAMENTARIA" in strip_accents(l).upper():
+                break
+            om_lines.append(l)
     fields["omBeneficiada"] = re.sub(r"\s+", " ", " ".join(om_lines)).strip()
     if not fields["omBeneficiada"]:
         warnings.append(f"{ctx}: OM beneficiada não encontrada")
@@ -272,7 +280,10 @@ def parse_page(page_text: str, warnings: list, ctx: str):
 
     # --- GND3 / GND4 / Total --------------------------------------------------
     fields["gnd3"] = fields["gnd4"] = fields["total"] = None
-    seen_gnd_header = False
+    # Sem o cabeçalho "GND3 ... TOTAL" na camada de texto, aceita a primeira
+    # linha de três colunas monetárias da página.
+    seen_gnd_header = not any(
+        "GND3" in l.upper() and "TOTAL" in l.upper() for i, l in after)
     for i, l in after:
         u = l.upper()
         if "GND3" in u and "TOTAL" in u:
@@ -460,6 +471,13 @@ def main():
         writer.add_page(readers[src].pages[page_idx])
         with open(pdfs_out / f"{p['id']}.pdf", "wb") as out:
             writer.write(out)
+        # Versão pelo conteúdo da página: quando uma página é alterada dentro
+        # de uma cartilha (mesmo id), a URL muda e o navegador/app instalado
+        # não reaproveita o PDF ou a pré-visualização antigos do cache.
+        versao = hashlib.sha256(
+            (pdfs_out / f"{p['id']}.pdf").read_bytes()).hexdigest()[:12]
+        p["pdfDownloadUrl"] += f"?v={versao}"
+        p["previewUrl"] += f"?v={versao}"
 
     print("3b/4 Gerando imagens de pré-visualização (visor interno do app)…")
     for p in projects:
